@@ -1,0 +1,7 @@
+name: Enchant
+version: '${version}'
+main: com.github.doiche.Main
+api-version: '1.20'
+commands:
+  status:
+    description: status command
