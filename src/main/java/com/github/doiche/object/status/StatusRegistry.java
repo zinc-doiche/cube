@@ -66,14 +66,16 @@ public class StatusRegistry {
                 }
             }
         }
-        return null;
+        //fallback for custom debugging
+        Main.getInstance().getSLF4JLogger().warn("fallback for custom debugging");
+        return Rank.COMMON;
     }
 
     public static void read() {
-        File file = new File(Main.getInstance().getDataFolder(), "enchant.yml");
+        File file = new File(Main.getInstance().getDataFolder(), "status.yml");
 
         if(!file.exists()) {
-            Main.getInstance().saveResource("enchant.yml", false);
+            Main.getInstance().saveResource("status.yml", false);
         }
 
         YamlConfiguration yamlConfiguration = YamlConfiguration.loadConfiguration(file);
@@ -105,7 +107,7 @@ public class StatusRegistry {
                     }
                     rankValues.put(rank, arDouble);
                 } catch (NumberFormatException e) {
-                    Main.getInstance().getSLF4JLogger().error("Error while parsing enchant.yml", e);
+                    Main.getInstance().getSLF4JLogger().error("Error while parsing status.yml", e);
                 }
             }
             registries.put(statusType, new StatusRegistry(statusType, rankValues));

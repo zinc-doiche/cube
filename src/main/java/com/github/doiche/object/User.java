@@ -3,13 +3,12 @@ package com.github.doiche.object;
 import com.github.doiche.object.cube.OptionSlot;
 import com.github.doiche.object.status.Status;
 import com.github.doiche.object.status.StatusType;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class User {
     private static final Map<String, User> users = new HashMap<>();
@@ -41,8 +40,10 @@ public class User {
     public Status getStatus(StatusType statusType) {
         return statusMap.get(statusType);
     }
-    public void addStatus(StatusType statusType, double value) {
-        statusMap.get(statusType).addValue(value);
+    public Status addStatus(StatusType statusType, double value) {
+        Status status = statusMap.get(statusType);
+        status.addValue(value);
+        return status;
     }
     public void setStatus(Status status) {
         statusMap.put(status.getType(), status);
@@ -55,45 +56,52 @@ public class User {
         this.uuid = uuid;
     }
 
-    public void onDisarm(PersistentDataContainer container) {
+    public void onDisarm(Player player, PersistentDataContainer container) {
         for(OptionSlot slot : OptionSlot.values()) {
             if(container.has(slot.getNamespacedKey())) {
                 String data = container.get(slot.getNamespacedKey(), PersistentDataType.STRING);
                 if(data == null) {
-                    return;
+                    continue;
                 }
                 String[] splitData = data.split(",");
                 if(splitData.length != 2) {
-                    return;
+                    continue;
                 }
-                StatusType statusType = StatusType.valueOf(splitData[0]);
+                StatusType statusType = StatusType.valueOf(splitData[0].toUpperCase());
                 double value = Double.parseDouble(splitData[1]);
-                addStatus(statusType, -value);
+                Status status = addStatus(statusType, -value);
                 if(getStatus(statusType).getValue() <= 0) {
                     removeStatus(statusType);
+                    status.inactive(player);
+                    continue;
                 }
+                status.active(player);
             }
         }
     }
 
-    public void onEquip(PersistentDataContainer container) {
+    public void onEquip(Player player, PersistentDataContainer container) {
         for(OptionSlot slot : OptionSlot.values()) {
             if (container.has(slot.getNamespacedKey())) {
                 String data = container.get(slot.getNamespacedKey(), PersistentDataType.STRING);
                 if(data == null) {
-                    return;
+                    continue;
                 }
                 String[] splitData = data.split(",");
                 if(splitData.length != 2) {
-                    return;
+                    continue;
                 }
-                StatusType statusType = StatusType.valueOf(splitData[0]);
+                StatusType statusType = StatusType.valueOf(splitData[0].toUpperCase());
                 double value = Double.parseDouble(splitData[1]);
+                Status status;
                 if (!hasStatus(statusType)) {
-                    setStatus(new Status(statusType, value));
-                    return;
+                    status = new Status(statusType, value);
+                    setStatus(status);
+                    status.active(player);
+                    continue;
                 }
-                addStatus(statusType, value);
+                status = addStatus(statusType, value);
+                status.active(player);
             }
         }
     }

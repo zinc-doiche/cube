@@ -2,6 +2,7 @@ package com.github.doiche.object.cube;
 
 import com.github.doiche.Main;
 import com.github.doiche.object.status.Rank;
+import com.github.doiche.object.status.Status;
 import com.github.doiche.object.status.StatusRegistry;
 import com.github.doiche.object.status.StatusType;
 import org.bukkit.configuration.ConfigurationSection;
@@ -50,7 +51,8 @@ public class CubeRegistry {
         return Rank.COMMON;
     }
 
-    public static void roll(EquipmentSlot equipmentSlot, PersistentDataContainer container) {
+    public static Status[] roll(EquipmentSlot equipmentSlot, PersistentDataContainer container) {
+        Status[] status = new Status[3];
         for(OptionSlot slot : OptionSlot.values()) {
             var types = Arrays.stream(StatusType.values())
                     .filter(type -> type.isApplicable(equipmentSlot))
@@ -59,9 +61,11 @@ public class CubeRegistry {
             StatusType statusType = types.get(index);
             Rank rank = getRegistry(slot).getRandomRank();
             double value = StatusRegistry.getRegistry(statusType).getValue(rank);
-            String data = rank.name().toLowerCase() + "," + value;
+            String data = statusType.name().toLowerCase() + "," + value;
             container.set(slot.getNamespacedKey(), PersistentDataType.STRING, data);
+            status[slot.ordinal()] = new Status(statusType, value);
         }
+        return status;
     }
 
     public static void read() {

@@ -1,15 +1,23 @@
 package com.github.doiche.command;
 
 import com.github.doiche.object.cube.CubeRegistry;
+import com.github.doiche.object.cube.OptionSlot;
+import com.github.doiche.object.status.Rank;
+import com.github.doiche.object.status.Status;
+import com.github.doiche.object.status.StatusRegistry;
 import com.github.doiche.object.status.StatusType;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.NamespacedKey;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.StringUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -19,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static net.kyori.adventure.text.Component.empty;
 import static net.kyori.adventure.text.Component.text;
 
 public class CubeCommand implements TabExecutor {
@@ -31,7 +40,7 @@ public class CubeCommand implements TabExecutor {
             }
             case 2 -> {
                 if(args[0].equals("set")) {
-                    return StringUtil.copyPartialMatches(args[1], Arrays.asList("1", "2", "3"), list);
+                    return StringUtil.copyPartialMatches(args[1], Arrays.stream(OptionSlot.values()).map(OptionSlot::name).toList(), list);
                 }
             }
             case 3 -> {
@@ -41,7 +50,7 @@ public class CubeCommand implements TabExecutor {
             }
             case 4 -> {
                 if(args[0].equals("set")) {
-                    return StringUtil.copyPartialMatches(args[3], Collections.singletonList("value"), list);
+                    return StringUtil.copyPartialMatches(args[3], Arrays.stream(Rank.values()).map(Rank::name).toList(), list);
                 }
             }
         }
@@ -54,14 +63,12 @@ public class CubeCommand implements TabExecutor {
             return false;
         }
         ItemStack item = player.getInventory().getItemInMainHand();
-
         if(item.isEmpty()) {
             player.sendMessage(text("아이템을 들고 명령어를 사용해주세요.")
                     .color(NamedTextColor.RED)
                     .decoration(TextDecoration.BOLD, true));
             return false;
         }
-
         switch(args.length) {
             case 1 -> {
                 if(args[0].equals("info")) {
@@ -72,14 +79,57 @@ public class CubeCommand implements TabExecutor {
                     return true;
                 }
                 if(args[0].equals("roll")) {
-                    PersistentDataContainer container = item.getItemMeta().getPersistentDataContainer();
-                    CubeRegistry.roll(item.getType().getEquipmentSlot(), container);
+                    item.editMeta(itemMeta -> {
+                        PersistentDataContainer container = itemMeta.getPersistentDataContainer();
+                        Status[] status = CubeRegistry.roll(item.getType().getEquipmentSlot(), container);
+                        itemMeta.lore(Arrays.asList(
+                                empty(),
+                                status[0].lore(),
+                                status[1].lore(),
+                                status[2].lore()
+                        ));
+                        if(item.getType().getEquipmentSlot() == EquipmentSlot.HAND) {
+                            for (Status statusInstance : status) {
+                                if(statusInstance.getType() == StatusType.CRITICAL) {
+                                    container.set(StatusType.CRITICAL.getNamespacedKey(), PersistentDataType.DOUBLE, statusInstance.getValue());
+                                }
+                                if(statusInstance.getType() == StatusType.CRITICAL_DAMAGE) {
+                                    container.set(StatusType.CRITICAL_DAMAGE.getNamespacedKey(), PersistentDataType.DOUBLE, statusInstance.getValue());
+                                }
+                            }
+                        }
+                        //player.sendMessage(Arrays.toString(status));
+                    });
                     return true;
                 }
             }
             case 4 -> {
                 if(args[0].equals("set")) {
-                    player.sendMessage(text("Cube Set").color(NamedTextColor.GOLD).decoration(TextDecoration.BOLD, true));
+                    item.editMeta(itemMeta -> {
+                        PersistentDataContainer container = itemMeta.getPersistentDataContainer();
+                        OptionSlot optionSlot = OptionSlot.valueOf(args[1]);
+                        StatusType statusType = StatusType.valueOf(args[2]);
+                        double value = StatusRegistry.getRegistry(statusType).getValue(Rank.valueOf(args[3]));
+                        List<Component> lore = itemMeta.lore();
+                        String originStatusType = container.get(optionSlot.getNamespacedKey(), PersistentDataType.STRING).split(",")[0].toUpperCase();
+
+                        lore.set(optionSlot.ordinal() + 1, new Status(statusType, value).lore());
+                        itemMeta.lore(lore);
+                        container.set(optionSlot.getNamespacedKey(), PersistentDataType.STRING, statusType.name().toLowerCase() + "," + value);
+
+                        if(originStatusType.equals(StatusType.CRITICAL.name())) {
+                            container.remove(StatusType.CRITICAL.getNamespacedKey());
+                        }
+                        if(originStatusType.equals(StatusType.CRITICAL_DAMAGE.name())) {
+                            container.remove(StatusType.CRITICAL_DAMAGE.getNamespacedKey());
+                        }
+                        if(statusType.equals(StatusType.CRITICAL)) {
+                            container.set(StatusType.CRITICAL.getNamespacedKey(), PersistentDataType.DOUBLE, value);
+                        }
+                        if(statusType.equals(StatusType.CRITICAL_DAMAGE)) {
+                            container.set(StatusType.CRITICAL.getNamespacedKey(), PersistentDataType.DOUBLE, value);
+                        }
+                    });
                     return true;
                 }
             }
@@ -90,7 +140,6 @@ public class CubeCommand implements TabExecutor {
                 .append(text("/cube set <order> <StatusType> <value>"))
                 .color(NamedTextColor.RED)
                 .decoration(TextDecoration.BOLD, true));
-
         return false;
     }
 }

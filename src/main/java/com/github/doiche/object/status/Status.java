@@ -1,5 +1,6 @@
 package com.github.doiche.object.status;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
@@ -28,6 +29,14 @@ public class Status {
         this.value = value;
     }
 
+    public Component lore() {
+        Rank rank = StatusRegistry.getRank(type, value);
+        if(rank == null) {
+            return null;
+        }
+        return type.lore(rank, value);
+    }
+
     private AttributeInstance getAttribute(Player player) {
         AttributeInstance attribute;
         switch(type) {
@@ -49,7 +58,9 @@ public class Status {
 
     private AttributeModifier getModifier() {
         UUID uuid = UUID.nameUUIDFromBytes(type.name().getBytes());
-        return new AttributeModifier(uuid, type.name(), value / 100, AttributeModifier.Operation.MULTIPLY_SCALAR_1);
+        return type.isPercent()
+                ? new AttributeModifier(uuid, type.name(), value / 100, AttributeModifier.Operation.MULTIPLY_SCALAR_1)
+                : new AttributeModifier(uuid, type.name(), value, AttributeModifier.Operation.ADD_NUMBER);
     }
 
     public void active(Player player) {
@@ -68,5 +79,13 @@ public class Status {
             return;
         }
         attribute.removeModifier(getModifier());
+    }
+
+    @Override
+    public String toString() {
+        return "Status{" +
+                "type=" + type +
+                ", value=" + value +
+                '}';
     }
 }
