@@ -9,7 +9,6 @@ import com.github.doiche.object.status.StatusType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.NamespacedKey;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -24,7 +23,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static net.kyori.adventure.text.Component.empty;
@@ -81,7 +79,7 @@ public class CubeCommand implements TabExecutor {
                 if(args[0].equals("roll")) {
                     item.editMeta(itemMeta -> {
                         PersistentDataContainer container = itemMeta.getPersistentDataContainer();
-                        Status[] status = CubeRegistry.roll(item.getType().getEquipmentSlot(), container);
+                        Status[] status = CubeRegistry.roll(item, container);
                         itemMeta.lore(Arrays.asList(
                                 empty(),
                                 status[0].lore(),
@@ -95,6 +93,9 @@ public class CubeCommand implements TabExecutor {
                                 }
                                 if(statusInstance.getType() == StatusType.CRITICAL_DAMAGE) {
                                     container.set(StatusType.CRITICAL_DAMAGE.getNamespacedKey(), PersistentDataType.DOUBLE, statusInstance.getValue());
+                                }
+                                if(statusInstance.getType() == StatusType.ATTACK_POWER) {
+                                    statusInstance.active(itemMeta);
                                 }
                             }
                         }
@@ -110,17 +111,19 @@ public class CubeCommand implements TabExecutor {
                         OptionSlot optionSlot = OptionSlot.valueOf(args[1]);
                         StatusType statusType = StatusType.valueOf(args[2]);
                         double value = StatusRegistry.getRegistry(statusType).getValue(Rank.valueOf(args[3]));
+                        StatusType originStatusType = StatusType.valueOf(container.get(optionSlot.getNamespacedKey(), PersistentDataType.STRING)
+                                .split(",")[0].toUpperCase());
+                        Status originalStatus = new Status(originStatusType, .0);
+                        Status status = new Status(statusType, value);
                         List<Component> lore = itemMeta.lore();
-                        String originStatusType = container.get(optionSlot.getNamespacedKey(), PersistentDataType.STRING).split(",")[0].toUpperCase();
-
-                        lore.set(optionSlot.ordinal() + 1, new Status(statusType, value).lore());
+                        lore.set(optionSlot.ordinal() + 1, status.lore());
                         itemMeta.lore(lore);
                         container.set(optionSlot.getNamespacedKey(), PersistentDataType.STRING, statusType.name().toLowerCase() + "," + value);
 
-                        if(originStatusType.equals(StatusType.CRITICAL.name())) {
+                        if(originStatusType.equals(StatusType.CRITICAL)) {
                             container.remove(StatusType.CRITICAL.getNamespacedKey());
                         }
-                        if(originStatusType.equals(StatusType.CRITICAL_DAMAGE.name())) {
+                        if(originStatusType.equals(StatusType.CRITICAL_DAMAGE)) {
                             container.remove(StatusType.CRITICAL_DAMAGE.getNamespacedKey());
                         }
                         if(statusType.equals(StatusType.CRITICAL)) {
@@ -128,6 +131,12 @@ public class CubeCommand implements TabExecutor {
                         }
                         if(statusType.equals(StatusType.CRITICAL_DAMAGE)) {
                             container.set(StatusType.CRITICAL.getNamespacedKey(), PersistentDataType.DOUBLE, value);
+                        }
+                        if(originStatusType.equals(StatusType.ATTACK_POWER)) {
+                            originalStatus.inactive(itemMeta);
+                        }
+                        if(statusType.equals(StatusType.ATTACK_POWER)) {
+                            status.active(itemMeta);
                         }
                     });
                     return true;

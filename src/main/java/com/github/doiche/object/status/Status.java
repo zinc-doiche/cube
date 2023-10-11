@@ -5,6 +5,8 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.UUID;
 
@@ -56,8 +58,9 @@ public class Status {
         return attribute;
     }
 
-    private AttributeModifier getModifier() {
+    public AttributeModifier getModifier() {
         UUID uuid = UUID.nameUUIDFromBytes(type.name().getBytes());
+
         return type.isPercent()
                 ? new AttributeModifier(uuid, type.name(), value / 100, AttributeModifier.Operation.MULTIPLY_SCALAR_1)
                 : new AttributeModifier(uuid, type.name(), value, AttributeModifier.Operation.ADD_NUMBER);
@@ -79,6 +82,25 @@ public class Status {
             return;
         }
         attribute.removeModifier(getModifier());
+    }
+
+    public void active(ItemMeta itemMeta) {
+        Attribute attribute = type.getAttribute();
+        if(attribute == null) {
+            return;
+        }
+        AttributeModifier modifier = new AttributeModifier(UUID.nameUUIDFromBytes(type.name().getBytes()), type.name(),
+                value, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.HAND);
+        itemMeta.removeAttributeModifier(attribute);
+        itemMeta.addAttributeModifier(attribute, modifier);
+    }
+
+    public void inactive(ItemMeta itemMeta) {
+        Attribute attribute = type.getAttribute();
+        if(attribute == null) {
+            return;
+        }
+        itemMeta.removeAttributeModifier(attribute);
     }
 
     @Override

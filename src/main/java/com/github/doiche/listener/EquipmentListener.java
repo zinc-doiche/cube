@@ -36,12 +36,12 @@ public class EquipmentListener implements Listener {
         if(!oldItem.isEmpty()) {
             oldContainer = oldItem.getItemMeta().getPersistentDataContainer();
             user.onDisarm(player, oldContainer);
-            player.performCommand("status info");
+            //player.performCommand("status info");
         }
         if(!newItem.isEmpty()) {
             newContainer = newItem.getItemMeta().getPersistentDataContainer();
             user.onEquip(player, newContainer);
-            player.performCommand("status info");
+            //player.performCommand("status info");
         }
     }
 }

@@ -5,9 +5,12 @@ import com.github.doiche.object.status.Rank;
 import com.github.doiche.object.status.Status;
 import com.github.doiche.object.status.StatusRegistry;
 import com.github.doiche.object.status.StatusType;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -51,8 +54,9 @@ public class CubeRegistry {
         return Rank.COMMON;
     }
 
-    public static Status[] roll(EquipmentSlot equipmentSlot, PersistentDataContainer container) {
-        Status[] status = new Status[3];
+    public static Status[] roll(ItemStack item, PersistentDataContainer container) {
+        Status[] arStatus = new Status[3];
+        EquipmentSlot equipmentSlot = item.getType().getEquipmentSlot();
         for(OptionSlot slot : OptionSlot.values()) {
             var types = Arrays.stream(StatusType.values())
                     .filter(type -> type.isApplicable(equipmentSlot))
@@ -63,9 +67,17 @@ public class CubeRegistry {
             double value = StatusRegistry.getRegistry(statusType).getValue(rank);
             String data = statusType.name().toLowerCase() + "," + value;
             container.set(slot.getNamespacedKey(), PersistentDataType.STRING, data);
-            status[slot.ordinal()] = new Status(statusType, value);
+            Status status = new Status(statusType, value);
+            arStatus[slot.ordinal()] = status;
+
+            Main.getInstance().getSLF4JLogger().info((item.getType().getEquipmentSlot() == EquipmentSlot.HAND) + "");
+            if(statusType == StatusType.ATTACK_POWER && item.getType().getEquipmentSlot() == EquipmentSlot.HAND) {
+                item.editMeta(itemMeta -> {
+                    itemMeta.addAttributeModifier(Attribute.GENERIC_ATTACK_DAMAGE, status.getModifier());
+                });
+            }
         }
-        return status;
+        return arStatus;
     }
 
     public static void read() {

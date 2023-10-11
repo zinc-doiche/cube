@@ -74,7 +74,7 @@ public class StatusCommand implements TabExecutor {
                             AttributeInstance attributeInstance = player.getAttribute(attribute);
                             realValue = attributeInstance == null ? status.getValue() : attributeInstance.getValue();
                         }
-                        if (!item.isEmpty()) {
+                        if (!item.isEmpty() && arStatus[0] != null) {
                             for (Status handStatus : arStatus) {
                                 if (handStatus.getType() != status.getType()) {
                                     continue;
