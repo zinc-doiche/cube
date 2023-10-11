@@ -37,6 +37,10 @@ public class Status {
         return type.lore(rank, value);
     }
 
+    public String serialize() {
+        return type.name().toLowerCase() + "," + value;
+    }
+
     private AttributeInstance getAttribute(Player player) {
         AttributeInstance attribute;
         switch(type) {

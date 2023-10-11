@@ -9,6 +9,8 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.inventory.EquipmentSlot;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 public enum StatusType {
     ATTACK_POWER("기본 공격력"),
@@ -27,6 +29,16 @@ public enum StatusType {
     StatusType(String ability, EquipmentSlot... applicableSlots) {
         this.ability = ability;
         this.applicableSlots = applicableSlots;
+    }
+
+    public static List<StatusType> getApplicableTypes(EquipmentSlot equipmentSlot) {
+        List<StatusType> list = new ArrayList<>();
+        for(StatusType type : StatusType.values()) {
+            if(type.isApplicable(equipmentSlot)) {
+                list.add(type);
+            }
+        }
+        return list;
     }
 
     public boolean isPercent() {

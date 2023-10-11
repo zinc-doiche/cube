@@ -54,18 +54,20 @@ public class CubeRegistry {
     public static Status[] roll(EquipmentSlot equipmentSlot, PersistentDataContainer container) {
         Status[] status = new Status[3];
         for(OptionSlot slot : OptionSlot.values()) {
-            var types = Arrays.stream(StatusType.values())
-                    .filter(type -> type.isApplicable(equipmentSlot))
-                    .toList();
-            int index = random.nextInt(types.size());
-            StatusType statusType = types.get(index);
-            Rank rank = getRegistry(slot).getRandomRank();
-            double value = StatusRegistry.getRegistry(statusType).getValue(rank);
-            String data = statusType.name().toLowerCase() + "," + value;
-            container.set(slot.getNamespacedKey(), PersistentDataType.STRING, data);
+            var types = StatusType.getApplicableTypes(equipmentSlot);
+            StatusType statusType = types.get(random.nextInt(types.size()));
+            double value = StatusRegistry.getRegistry(statusType).getValue(getRegistry(slot).getRandomRank());
+            container.set(slot.getNamespacedKey(), PersistentDataType.STRING, statusType.name().toLowerCase() + "," + value);
             status[slot.ordinal()] = new Status(statusType, value);
         }
         return status;
+    }
+
+    public static Status roll(OptionSlot optionSlot, EquipmentSlot equipmentSlot) {
+        final List<StatusType> types = StatusType.getApplicableTypes(equipmentSlot);
+        StatusType statusType = types.get(random.nextInt(types.size()));
+        double value = StatusRegistry.getRegistry(statusType).getValue(getRegistry(optionSlot).getRandomRank());
+        return new Status(statusType, value);
     }
 
     public static void read() {
