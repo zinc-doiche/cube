@@ -5,12 +5,9 @@ import com.github.doiche.object.status.Rank;
 import com.github.doiche.object.status.Status;
 import com.github.doiche.object.status.StatusRegistry;
 import com.github.doiche.object.status.StatusType;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -54,30 +51,23 @@ public class CubeRegistry {
         return Rank.COMMON;
     }
 
-    public static Status[] roll(ItemStack item, PersistentDataContainer container) {
-        Status[] arStatus = new Status[3];
-        EquipmentSlot equipmentSlot = item.getType().getEquipmentSlot();
+    public static Status[] roll(EquipmentSlot equipmentSlot, PersistentDataContainer container) {
+        Status[] status = new Status[3];
         for(OptionSlot slot : OptionSlot.values()) {
-            var types = Arrays.stream(StatusType.values())
-                    .filter(type -> type.isApplicable(equipmentSlot))
-                    .toList();
-            int index = random.nextInt(types.size());
-            StatusType statusType = types.get(index);
-            Rank rank = getRegistry(slot).getRandomRank();
-            double value = StatusRegistry.getRegistry(statusType).getValue(rank);
-            String data = statusType.name().toLowerCase() + "," + value;
-            container.set(slot.getNamespacedKey(), PersistentDataType.STRING, data);
-            Status status = new Status(statusType, value);
-            arStatus[slot.ordinal()] = status;
-
-            Main.getInstance().getSLF4JLogger().info((item.getType().getEquipmentSlot() == EquipmentSlot.HAND) + "");
-            if(statusType == StatusType.ATTACK_POWER && item.getType().getEquipmentSlot() == EquipmentSlot.HAND) {
-                item.editMeta(itemMeta -> {
-                    itemMeta.addAttributeModifier(Attribute.GENERIC_ATTACK_DAMAGE, status.getModifier());
-                });
-            }
+            var types = StatusType.getApplicableTypes(equipmentSlot);
+            StatusType statusType = types.get(random.nextInt(types.size()));
+            double value = StatusRegistry.getRegistry(statusType).getValue(getRegistry(slot).getRandomRank());
+            container.set(slot.getNamespacedKey(), PersistentDataType.STRING, statusType.name().toLowerCase() + "," + value);
+            status[slot.ordinal()] = new Status(statusType, value);
         }
-        return arStatus;
+        return status;
+    }
+
+    public static Status roll(OptionSlot optionSlot, EquipmentSlot equipmentSlot) {
+        final List<StatusType> types = StatusType.getApplicableTypes(equipmentSlot);
+        StatusType statusType = types.get(random.nextInt(types.size()));
+        double value = StatusRegistry.getRegistry(statusType).getValue(getRegistry(optionSlot).getRandomRank());
+        return new Status(statusType, value);
     }
 
     public static void read() {

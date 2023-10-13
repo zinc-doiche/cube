@@ -9,21 +9,23 @@ import com.github.doiche.object.status.StatusType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.StringUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 import static net.kyori.adventure.text.Component.empty;
 import static net.kyori.adventure.text.Component.text;
@@ -77,68 +79,79 @@ public class CubeCommand implements TabExecutor {
                     return true;
                 }
                 if(args[0].equals("roll")) {
-                    item.editMeta(itemMeta -> {
-                        PersistentDataContainer container = itemMeta.getPersistentDataContainer();
-                        Status[] status = CubeRegistry.roll(item, container);
-                        itemMeta.lore(Arrays.asList(
-                                empty(),
-                                status[0].lore(),
-                                status[1].lore(),
-                                status[2].lore()
-                        ));
-                        if(item.getType().getEquipmentSlot() == EquipmentSlot.HAND) {
-                            for (Status statusInstance : status) {
-                                if(statusInstance.getType() == StatusType.CRITICAL) {
-                                    container.set(StatusType.CRITICAL.getNamespacedKey(), PersistentDataType.DOUBLE, statusInstance.getValue());
+                    ItemMeta itemMeta = item.getItemMeta();
+                    EquipmentSlot equipmentSlot = item.getType().getEquipmentSlot();
+                    PersistentDataContainer container = itemMeta.getPersistentDataContainer();
+                    final List<Component> lore = new ArrayList<>();
+                    lore.add(empty());
+                    if(equipmentSlot.isArmor()) {
+                        Arrays.stream(OptionSlot.values()).forEach(optionSlot -> {
+                            NamespacedKey key = optionSlot.getNamespacedKey();
+                            Status status = CubeRegistry.roll(optionSlot, equipmentSlot);
+                            container.set(key, PersistentDataType.STRING, status.serialize());
+                            lore.add(status.lore());
+                        });
+                    } else {
+                        Arrays.stream(OptionSlot.values()).forEach(optionSlot -> {
+                            Status status = CubeRegistry.roll(optionSlot, equipmentSlot);
+                            lore.add(status.lore());
+                            switch (status.getType()) {
+                                case ATTACK_POWER -> {
+                                    UUID uuid = UUID.nameUUIDFromBytes(status.getType().name().getBytes());
+                                    AttributeModifier modifier = new AttributeModifier(uuid, status.getType().name(), status.getValue(),
+                                            AttributeModifier.Operation.ADD_NUMBER, equipmentSlot);
+                                    itemMeta.addAttributeModifier(Attribute.GENERIC_ATTACK_DAMAGE, modifier);
                                 }
-                                if(statusInstance.getType() == StatusType.CRITICAL_DAMAGE) {
-                                    container.set(StatusType.CRITICAL_DAMAGE.getNamespacedKey(), PersistentDataType.DOUBLE, statusInstance.getValue());
-                                }
-                                if(statusInstance.getType() == StatusType.ATTACK_POWER) {
-                                    statusInstance.active(itemMeta);
+                                case CRITICAL, CRITICAL_DAMAGE -> {
+                                    NamespacedKey key = status.getType().getNamespacedKey();
+                                    container.set(key, PersistentDataType.DOUBLE, status.getValue());
                                 }
                             }
-                        }
-                        //player.sendMessage(Arrays.toString(status));
-                    });
+                        });
+                    }
+                    itemMeta.lore(lore);
+                    item.setItemMeta(itemMeta);
                     return true;
                 }
             }
             case 4 -> {
                 if(args[0].equals("set")) {
-                    item.editMeta(itemMeta -> {
-                        PersistentDataContainer container = itemMeta.getPersistentDataContainer();
-                        OptionSlot optionSlot = OptionSlot.valueOf(args[1]);
-                        StatusType statusType = StatusType.valueOf(args[2]);
-                        double value = StatusRegistry.getRegistry(statusType).getValue(Rank.valueOf(args[3]));
-                        StatusType originStatusType = StatusType.valueOf(container.get(optionSlot.getNamespacedKey(), PersistentDataType.STRING)
-                                .split(",")[0].toUpperCase());
-                        Status originalStatus = new Status(originStatusType, .0);
-                        Status status = new Status(statusType, value);
-                        List<Component> lore = itemMeta.lore();
-                        lore.set(optionSlot.ordinal() + 1, status.lore());
-                        itemMeta.lore(lore);
-                        container.set(optionSlot.getNamespacedKey(), PersistentDataType.STRING, statusType.name().toLowerCase() + "," + value);
+                    ItemMeta itemMeta = item.getItemMeta();
+                    PersistentDataContainer container = itemMeta.getPersistentDataContainer();
+                    OptionSlot optionSlot = OptionSlot.valueOf(args[1]);
+                    StatusType statusType = StatusType.valueOf(args[2]);
+                    double value = StatusRegistry.getRegistry(statusType).getValue(Rank.valueOf(args[3]));
+                    String originStatusType = container.get(optionSlot.getNamespacedKey(), PersistentDataType.STRING).split(",")[0].toUpperCase();
 
-                        if(originStatusType.equals(StatusType.CRITICAL)) {
-                            container.remove(StatusType.CRITICAL.getNamespacedKey());
-                        }
-                        if(originStatusType.equals(StatusType.CRITICAL_DAMAGE)) {
-                            container.remove(StatusType.CRITICAL_DAMAGE.getNamespacedKey());
-                        }
-                        if(statusType.equals(StatusType.CRITICAL)) {
-                            container.set(StatusType.CRITICAL.getNamespacedKey(), PersistentDataType.DOUBLE, value);
-                        }
-                        if(statusType.equals(StatusType.CRITICAL_DAMAGE)) {
-                            container.set(StatusType.CRITICAL.getNamespacedKey(), PersistentDataType.DOUBLE, value);
-                        }
-                        if(originStatusType.equals(StatusType.ATTACK_POWER)) {
-                            originalStatus.inactive(itemMeta);
-                        }
-                        if(statusType.equals(StatusType.ATTACK_POWER)) {
-                            status.active(itemMeta);
-                        }
-                    });
+                    String[] data = container.get(optionSlot.getNamespacedKey(), PersistentDataType.STRING).split(",");
+                    Status oldStatus = new Status(StatusType.valueOf(data[0]), Double.parseDouble(data[1]));
+                    Status newStatus = new Status(statusType, value);
+                    List<Component> lore = itemMeta.lore();
+
+                    if(item.getType().getEquipmentSlot().isArmor()) {
+
+                    } else {
+
+                    }
+
+                    lore.set(optionSlot.ordinal() + 1, new Status(statusType, value).lore());
+                    itemMeta.lore(lore);
+                    container.set(optionSlot.getNamespacedKey(), PersistentDataType.STRING, statusType.name().toLowerCase() + "," + value);
+
+                    if(originStatusType.equals(StatusType.CRITICAL.name())) {
+                        container.remove(StatusType.CRITICAL.getNamespacedKey());
+                    }
+                    if(originStatusType.equals(StatusType.CRITICAL_DAMAGE.name())) {
+                        container.remove(StatusType.CRITICAL_DAMAGE.getNamespacedKey());
+                    }
+                    if(statusType.equals(StatusType.CRITICAL)) {
+                        container.set(StatusType.CRITICAL.getNamespacedKey(), PersistentDataType.DOUBLE, value);
+                    }
+                    if(statusType.equals(StatusType.CRITICAL_DAMAGE)) {
+                        container.set(StatusType.CRITICAL.getNamespacedKey(), PersistentDataType.DOUBLE, value);
+                    }
+
+                    item.setItemMeta(itemMeta);
                     return true;
                 }
             }
