@@ -1,6 +1,5 @@
 package com.github.doiche.listener;
 
-import com.github.doiche.Main;
 import com.github.doiche.object.User;
 import com.github.doiche.object.status.StatusType;
 import io.lumine.mythic.bukkit.events.MythicDamageEvent;
@@ -8,7 +7,6 @@ import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;

@@ -1,12 +1,18 @@
 package com.github.doiche.object.status;
 
+import com.github.doiche.Main;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Material;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.UUID;
 
@@ -29,6 +35,10 @@ public class Status {
     public Status(StatusType type, double value) {
         this.type = type;
         this.value = value;
+    }
+
+    public boolean isCriticalOrCriticalDamage() {
+        return type == StatusType.CRITICAL || type == StatusType.CRITICAL_DAMAGE;
     }
 
     public Component lore() {
@@ -63,11 +73,13 @@ public class Status {
     }
 
     public AttributeModifier getModifier() {
-        UUID uuid = UUID.nameUUIDFromBytes(type.name().getBytes());
-
         return type.isPercent()
-                ? new AttributeModifier(uuid, type.name(), value / 100, AttributeModifier.Operation.MULTIPLY_SCALAR_1)
-                : new AttributeModifier(uuid, type.name(), value, AttributeModifier.Operation.ADD_NUMBER);
+                ? new AttributeModifier(UUID.randomUUID(), type.name(), value / 100, AttributeModifier.Operation.MULTIPLY_SCALAR_1)
+                : new AttributeModifier(UUID.randomUUID(), type.name(), value, AttributeModifier.Operation.ADD_NUMBER);
+    }
+
+    public AttributeModifier getModifier(EquipmentSlot equipmentSlot) {
+        return new AttributeModifier(UUID.randomUUID(), type.name(), value, AttributeModifier.Operation.ADD_NUMBER, equipmentSlot);
     }
 
     public void active(Player player) {
@@ -85,18 +97,29 @@ public class Status {
         if(attribute == null) {
             return;
         }
-        attribute.removeModifier(getModifier());
+        attribute.getModifiers().forEach(attributeModifier -> {
+            if(attributeModifier.getName().equals(type.name()) && attributeModifier.getAmount() == value) {
+                attribute.removeModifier(attributeModifier);
+            }
+        });
     }
 
-    public void active(ItemMeta itemMeta) {
+    public void active(ItemStack item) {
+        item.editMeta(meta -> active(item, meta));
+    }
+
+    public void active(ItemStack item, ItemMeta itemMeta) {
         Attribute attribute = type.getAttribute();
         if(attribute == null) {
             return;
         }
-        AttributeModifier modifier = new AttributeModifier(UUID.nameUUIDFromBytes(type.name().getBytes()), type.name(),
-                value, AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.HAND);
-        itemMeta.removeAttributeModifier(attribute);
-        itemMeta.addAttributeModifier(attribute, modifier);
+        ArrayListMultimap<Attribute, AttributeModifier> originalModifiers = ArrayListMultimap.create(item.getType().getDefaultAttributeModifiers(EquipmentSlot.HAND));
+        Multimap<Attribute, AttributeModifier> modifiers = itemMeta.getAttributeModifiers();
+        if(modifiers != null) {
+            originalModifiers.putAll(modifiers);
+        }
+        originalModifiers.put(attribute, getModifier(EquipmentSlot.HAND));
+        itemMeta.setAttributeModifiers(originalModifiers);
     }
 
     public void inactive(ItemMeta itemMeta) {
@@ -104,7 +127,17 @@ public class Status {
         if(attribute == null) {
             return;
         }
-        itemMeta.removeAttributeModifier(attribute);
+        Multimap<Attribute, AttributeModifier> attributeModifiers = itemMeta.getAttributeModifiers();
+        if(attributeModifiers == null) {
+            return;
+        }
+        attributeModifiers.forEach((attributeKey, attributeModifier) -> {
+            if(attributeKey == attribute) {
+                if(attributeModifier.getName().equals(type.name()) && attributeModifier.getAmount() == value) {
+                    itemMeta.removeAttributeModifier(attribute, attributeModifier);
+                }
+            }
+        });
     }
 
     @Override

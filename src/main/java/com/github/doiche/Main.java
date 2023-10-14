@@ -1,7 +1,7 @@
 package com.github.doiche;
 
 import com.github.doiche.command.CubeCommand;
-import com.github.doiche.command.LogCommand;
+import com.github.doiche.command.TestCommand;
 import com.github.doiche.command.StatusCommand;
 import com.github.doiche.listener.EquipmentListener;
 import com.github.doiche.listener.UserListener;
@@ -25,6 +25,6 @@ public final class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new EquipmentListener(), this);
         getCommand("status").setExecutor(new StatusCommand());
         getCommand("cube").setExecutor(new CubeCommand());
-        getCommand("log").setExecutor(new LogCommand());
+        getCommand("test").setExecutor(new TestCommand());
     }
 }
